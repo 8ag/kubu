@@ -1,0 +1,106 @@
+systemctl stop firewalld
+systemctl disable firewalld
+
+192.168.0.3 kubu-master kubu-master.local
+192.168.0.7 kubu-node1 kubu-node1.local
+192.168.0.8 kubu-node2 kubu-node2.local
+
+
+# ON SERVER ###
+yum install kubernetes etcd flannel
+
+
+
+vi /etc/kubernetes/apiserver
+KUBE_API_ADDRESS="--insecure-bind-address=0.0.0.0"
+KUBE_ETCD_SERVERS="--etcd-servers=http://127.0.0.1:2379"
+KUBE_SERVICE_ADDRESSES="--service-cluster-ip-range=10.254.0.0/16"
+KUBE_ADMISSION_CONTROL="--admission-control=NamespaceLifecycle,NamespaceExists,LimitRanger,SecurityContextDeny,ResourceQuota"
+KUBE_API_ARGS=""
+
+
+vi /etc/kubernetes/config
+
+KUBE_LOGTOSTDERR="--logtostderr=true"
+KUBE_LOG_LEVEL="--v=0"
+KUBE_ALLOW_PRIV="--allow-privileged=false"
+KUBE_MASTER="--master=http://127.0.0.1:8080"
+
+
+vi /etc/kubernetes/kubelet
+KUBELET_ADDRESS="--address=127.0.0.1"
+KUBELET_HOSTNAME="--hostname-override=kubu-master.local"
+KUBELET_API_SERVER="--api-servers=http://127.0.0.1:8080"
+KUBELET_POD_INFRA_CONTAINER="--pod-infra-container-image=registry.access.redhat.com/rhel7/pod-infrastructure:latest"
+KUBELET_ARGS=""
+
+
+vi /etc/etcd/etcd.conf
+
+ETCD_NAME=default
+ETCD_DATA_DIR="/var/lib/etcd/default.etcd"
+ETCD_LISTEN_CLIENT_URLS="http://0.0.0.0:2379"
+ETCD_ADVERTISE_CLIENT_URLS="http://kube-master.local:2379,http://localhost:2379"
+
+
+vi /etc/sysconfig/flanneld
+
+FLANNEL_ETCD="http://127.0.0.1:2379"
+FLANNEL_ETCD_KEY="/atomic.io/network"
+
+
+
+etcdctl mk /atomic.io/network/config '{"Network":"172.17.0.0/16"}'
+or
+curl -L http://localhost:2379/v2/keys/atomic.io/network/connfig -XPUT --data-urlencode value@flanneld-conf.json
+
+etcdctl get /atomic.io/network/config
+
+
+
+for SERVICES in etcd kube-apiserver kube-controller-manager kube-scheduler; do
+    systemctl enable --now $SERVICES
+    systemctl restart $SERVICES
+    systemctl status $SERVICES 
+done
+
+
+kubectl get nodes
+kubectl cluster-info 
+
+
+
+########
+on-nodes:
+#######
+
+yum install kubernetes-node flannel 
+
+
+vi /etc/kubernetes/config
+
+KUBE_LOGTOSTDERR="--logtostderr=true"
+KUBE_LOG_LEVEL="--v=0"
+KUBE_ALLOW_PRIV="--allow-privileged=false"
+KUBE_MASTER="--master=http://kubu-master.local:8080"
+
+vi /etc/kubernetes/kubelet
+KUBELET_ADDRESS="--address=0.0.0.0"
+KUBELET_HOSTNAME="--hostname-override=kubu-node1"
+#KUBELET_HOSTNAME="--hostname-override=kubu-node2"
+KUBELET_API_SERVER="--api-servers=http://kubu-master.local:8080"
+KUBELET_POD_INFRA_CONTAINER="--pod-infra-container-image=registry.access.redhat.com/rhel7/pod-infrastructure:latest"
+KUBELET_ARGS=""
+
+
+vi /etc/sysconfig/flanneld
+
+FLANNEL_ETCD="http://kubu-master.local:2379"
+FLANNEL_ETCD_KEY="/atomic.io/network"
+
+
+for SERVICES in kube-proxy kubelet docker flanneld; do
+    systemctl restart $SERVICES
+    systemctl enable $SERVICES
+    systemctl status $SERVICES 
+done
