@@ -1,0 +1,275 @@
+yum update
+
+yum install kubernetes etcd docker flannel
+
+vi /etc/hosts
+
+113.128.165.3  kubu-master kubu-master.local
+113.128.164.248 kubu-node1 kubu-node1.local
+113.128.164.254 kubu-node2 kubu-node2.local
+
+
+systemctl enable ntpd
+systemctl start  ntpd
+systemctl status ntpd
+
+
+systemctl disable firewalld
+systemctl stop firewalld
+
+iptables -F
+iptables-save
+
+systemctl enable docker
+systemctl restart docker
+systemctl status docker
+
+
+http://severalnines.com/blog/installing-kubernetes-cluster-minions-centos7-manage-pods-services
+
+
+#### On MASTER:####
+vi  /etc/etcd/etcd.conf
+
+a)
+ETCD_NAME=default
+ETCD_DATA_DIR="/var/lib/etcd/default.etcd"
+ETCD_LISTEN_CLIENT_URLS="http://0.0.0.0:2379"
+ETCD_ADVERTISE_CLIENT_URLS="http://localhost:2379"
+
+b)
+ETCD_NAME=default
+ETCD_DATA_DIR="/var/lib/etcd/default.etcd"
+ETCD_LISTEN_CLIENT_URLS="http://0.0.0.0:2379"
+ETCD_LISTEN_PEER_URLS="http://localhost:2380"
+ETCD_ADVERTISE_CLIENT_URLS="http://0.0.0.0:2379"
+
+
+
+/etc/kubernetes/config
+KUBE_MASTER="--master=http://113.128.164.3:8080"
+
+vi /etc/kubernetes/apiserver
+
+KUBE_API_ADDRESS="--address=0.0.0.0"
+KUBE_API_PORT="--port=8080"
+KUBELET_PORT="--kubelet_port=10250"
+KUBE_ETCD_SERVERS="--etcd_servers=http://127.0.0.1:2379"
+KUBE_SERVICE_ADDRESSES="--service-cluster-ip-range=10.254.0.0/16"
+KUBE_ADMISSION_CONTROL="--admission_control=NamespaceLifecycle,NamespaceExists,LimitRanger,SecurityContextDeny,ResourceQuota"
+KUBE_API_ARGS=""
+
+
+for SERVICES in etcd kube-apiserver kube-controller-manager kube-scheduler; do
+    systemctl restart $SERVICES
+    systemctl enable $SERVICES
+    systemctl status $SERVICES 
+done
+
+
+
+ON ALL NODES:
+
+		vi /etc/sysconfig/flanneld
+		FLANNEL_ETCD="http://113.128.164.3:2379"
+
+		vi /etc/kubernetes/config
+		KUBE_MASTER="--master=http://113.128.164.3:8080"
+
+ON NODE1:
+
+vi /etc/kubernetes/kubelet 
+	
+KUBELET_ADDRESS="--address=0.0.0.0"
+KUBELET_PORT="--port=10250"
+# change the hostname to this host’s IP address
+KUBELET_HOSTNAME="--hostname_override=113.128.164.248"
+KUBELET_API_SERVER="--api_servers=http://113.128.164.3:8080"
+KUBELET_ARGS=""
+
+ON NODE2:
+
+KUBELET_ADDRESS="--address=0.0.0.0"
+KUBELET_PORT="--port=10250"
+# change the hostname to this host’s IP address
+KUBELET_HOSTNAME="--hostname_override=113.128.164.254"
+KUBELET_API_SERVER="--api_servers=http://113.128.164.3:8080"
+KUBELET_ARGS=""
+
+for SERVICES in etcd kube-proxy kubelet docker flanneld; do
+    systemctl restart $SERVICES
+    systemctl enable $SERVICES
+    systemctl status $SERVICES 
+done
+
+
+for SERVICES in etcd kube-proxy kubelet docker flanneld; do
+    systemctl status $SERVICES 
+done
+
+
+docker pull rhel7:latest
+
+curl -O https://access.redhat.com/webassets/avalon/d/Red_Hat_Enterprise_Linux_Atomic_Host-7-Getting_Started_Guide-en-US/files/web_cont_3.tgz
+
+mkdir ~/mywebcontainer
+cp web_cont*.tgz ~/mywebcontainer
+cd ~/mywebcontainer
+tar xvf web_cont*.tgz
+
+
+
+docker build -t webwithdb .
+
+
+
+for SERVICES in kube-proxy kubelet docker flanneld; do
+    systemctl restart $SERVICES
+    systemctl enable $SERVICES
+    systemctl status $SERVICES 
+done
+
+
+for SERVICES in kube-proxy kubelet docker flanneld; do
+    systemctl enable $SERVICES
+    systemctl status $SERVICES 
+done
+
+
+
+
+ON SERVER
+
+
+
+vi /etc/etcd/etcd.conf
+
+ETCD_NAME=default
+ETCD_DATA_DIR="/var/lib/etcd/default.etcd"
+ETCD_LISTEN_PEER_URLS="http://localhost:2380,http://localhost:7001"
+ETCD_LISTEN_CLIENT_URLS="http://0.0.0.0:4001,http://0.0.0.0:2379"
+ETCD_ADVERTISE_CLIENT_URLS="http://localhost:2379,http://localhost:4001"
+
+
+vi /etc/kubernetes/apiserver
+
+KUBE_API_ADDRESS="--address=0.0.0.0"
+KUBE_API_PORT="--port=8080"
+KUBE_ETCD_SERVERS="--etcd_servers=http://113.128.165.3:2379"
+KUBE_SERVICE_ADDRESSES="--portal_net=10.254.0.0/16"
+KUBE_ADMISSION_CONTROL="--admission_control=NamespaceAutoProvision,LimitRanger,SecurityContextDeny,ResourceQuota"
+KUBE_API_ARGS=""
+
+
+vi /etc/kubernetes/config
+
+KUBE_LOGTOSTDERR="--logtostderr=true"
+KUBE_LOG_LEVEL="--v=0"
+KUBE_ALLOW_PRIV="--allow_privileged=false"
+KUBE_MASTER="--master=http://113.128.165.3:8080"
+
+
+for SERVICES in etcd kube-apiserver kube-controller-manager kube-scheduler; do
+    systemctl restart $SERVICES
+    systemctl enable $SERVICES
+    systemctl status $SERVICES 
+done  |grep -i active 
+
+KUBE_LOGTOSTDERR="--logtostderr=true"
+KUBE_LOG_LEVEL="--v=0"
+KUBE_ALLOW_PRIV="--allow_privileged=false"
+KUBE_MASTER="--master=113.128.165.3:8080"
+
+
+vi /etc/kubernetes/kubelet
+KUBELET_ADDRESS="--address=0.0.0.0"
+KUBELET_PORT="--port=10250"
+KUBELET_HOSTNAME="--hostname_override=kubunode1"
+KUBELET_API_SERVER="--api_servers=http://113.128.165.3:8080"
+KUBELET_ARGS=""
+
+
+
+vi /etc/kubernetes/kubelet
+KUBELET_ADDRESS="--address=0.0.0.0"
+KUBELET_PORT="--port=10250"
+KUBELET_HOSTNAME="--hostname_override=kubunode2"
+KUBELET_API_SERVER="--api_servers=http://113.128.165.3:8080"
+KUBELET_ARGS=""
+
+vi /etc/sysconfig/flanneld
+
+FLANNEL_ETCD="113.128.165.3:4001"
+FLANNEL_ETCD_KEY="/flannel/network"
+FLANNEL_OPTIONS="eth0"
+
+
+for SERVICES in etcd kube-apiserver kube-controller-manager kube-scheduler; do
+      systemctl status $SERVICES 
+done
+
+
+
+etcdctl mk /coreos.com/network/config '{"Network":"172.17.0.0/16"}'
+
+
+etcdctl get /atomic.io/network/config
+
+
+
+etcdctl get /coreos.com/network/config '{"Network":"172.17.0.0/16"}'
+
+
+FLANNEL_ETCD="http://kubu-master.local:4001"
+FLANNEL_ETCD_KEY="/atomic.io/network"
+
+
+
+export vdsiuser=USER
+export http_proxy=url:port
+export https_proxy=url:port
+export ftp_proxy=url:port
+export rsync_proxy=url:port
+export no_proxy='113.128.165.3/21'
+curl -v --proxy ${http_proxy} --proxy-ntlm --proxy-user "VDSI\\${vdsiuser}" http://curl.haxx.se
+
+
+
+
+vi /etc/yum.conf
+
+http_proxy=http://URL:80
+proxy_username=
+proxy_password=
+
+
+
+
+vi /etc/sysconfig/docker
+
+HTTP_PROXY='http://USER:xxxxxep16@ad@url:port'
+HTTPS_PROXY='http://USER:xxxxxp16@ad@url:port'
+
+
+
+ENV http_proxy 'http://USER:xxxxxep16@ad@url:port'
+ENV https_proxy 'http://USER:xxxxxep16@ad@url:port'
+ENV HTTP_PROXY 'http://USER:xxxxxep16@ad@url:port'
+ENV HTTPS_PROXY 'http://USER:xxxxxep16@ad@url:port'
+
+http://severalnines.com/blog/installing-kubernetes-cluster-minions-centos7-manage-pods-services
+etcdctl update /atomic.io/network/config '{"Network":"172.17.0.0/16"}'
+
+etcdctl get /atomic.io/network/config
+curl -L http://113.128.165.3:4001/v2/keys/flannel/network/config -XPUT --data-urlencode value@flannel-config.json
+
+
+
+
+
+
+
+
+
+
+
