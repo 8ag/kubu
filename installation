@@ -186,3 +186,6 @@ spec:
     - containerPort: 80
 
 kubectl create -f pod-webserver.yaml 
+kubectl get pods -o wide 
+kubectl get pod httpd -o yaml | grep "podIP" 
+curl http://ip
