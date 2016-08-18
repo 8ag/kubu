@@ -1,15 +1,23 @@
+
 systemctl stop firewalld
 systemctl disable firewalld
 
-192.168.0.3 kubu-master kubu-master.local
-192.168.0.7 kubu-node1 kubu-node1.local
-192.168.0.8 kubu-node2 kubu-node2.local
+192.168.161.129 kubu-master kubu-master.local
+192.168.161.130 kubu-node1 kubu-node1.local
+192.168.161.131 kubu-node2 kubu-node2.local
 
+#####
+# Kubernet Master
+#####
+hostnamectl set-hostname kubu-master.local
 
-# ON SERVER ###
 yum install kubernetes etcd flannel
 
-
+cp /etc/kubernetes/apiserver /root/
+cp /etc/kubernetes/config /root/
+cp /etc/kubernetes/kubelet /root/
+cp /etc/etcd/etcd.conf /root/
+cp /etc/sysconfig/flanneld /root/
 
 vi /etc/kubernetes/apiserver
 KUBE_API_ADDRESS="--insecure-bind-address=0.0.0.0"
