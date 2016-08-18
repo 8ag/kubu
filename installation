@@ -1,4 +1,8 @@
 
+#####
+# Kubernet Master
+#####
+
 systemctl stop firewalld
 systemctl disable firewalld
 
@@ -6,9 +10,6 @@ systemctl disable firewalld
 192.168.161.130 kubu-node1 kubu-node1.local
 192.168.161.131 kubu-node2 kubu-node2.local
 
-#####
-# Kubernet Master
-#####
 hostnamectl set-hostname kubu-master.local
 
 yum install kubernetes etcd flannel
@@ -82,14 +83,24 @@ kubectl cluster-info
 
 
 ########
-on-nodes:
+#on-nodes:
 #######
+
+systemctl stop firewalld
+systemctl disable firewalld
 
 hostnamectl set-hostname kubu-node1.local
 hostnamectl set-hostname kubu-node2.local
 
+192.168.161.129 kubu-master kubu-master.local
+192.168.161.130 kubu-node1 kubu-node1.local
+192.168.161.131 kubu-node2 kubu-node2.local
+
 yum install kubernetes-node flannel 
 
+cp /etc/kubernetes/config /root/
+cp /etc/kubernetes/kubelet /root/
+cp /etc/sysconfig/flanneld /root/
 
 vi /etc/kubernetes/config
 
@@ -118,3 +129,8 @@ for SERVICES in kube-proxy kubelet docker flanneld; do
     systemctl enable $SERVICES
     systemctl status $SERVICES 
 done
+
+
+@@@on server @@
+kubectl get nodes
+kubectl cluster-info
