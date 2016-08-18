@@ -82,6 +82,12 @@ kubectl get nodes
 kubectl cluster-info 
 
 
+dashboard
+    yum install cockpit cockpit-kubernetes
+    systemctl enable cockpit.socket
+    systemctl start cockpit.socket
+    cockpit UI -> https://server_ip:9090
+
 ########
 #on-nodes:
 #######
