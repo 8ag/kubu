@@ -134,3 +134,55 @@ done
 @@@on server @@
 kubectl get nodes
 kubectl cluster-info
+
+
+################
+#### Create Pods
+################
+
+vi Dockerfile
+FROM centos
+MAINTAINER anix <anixnoyal@gmail.com>
+RUN yum -y install httpd
+RUN echo "Hello DockerFile" > /var/www/html/index.html
+EXPOSE 80
+CMD ["-D", "FOREGROUND"]
+ENTRYPOINT ["/usr/sbin/httpd"]
+
+docker build -t web_server:latest .
+
+docker images
+
+docker run -d -p 80:80 web_server 
+curl http://localhost/ 
+output : Hello DockerFile
+
+docker save web_server2 > web_server2.tar 
+scp web_server2.tar root@kubu-node2.local:/root/web_server2.tar 
+
+on node2
+    docker load < web_server2.tar 
+    docker images 
+
+on master
+
+vi pod-webserver.yaml 
+apiVersion: v1
+kind: Pod
+metadata:
+  # name of Pod
+  name: httpd
+  labels:
+    # rabel of Pod
+    app: web_server
+spec:
+  containers:
+    # name of Container
+  - name: httpd
+    # Container image
+    image: web_server2
+    ports:
+      # Container Port
+    - containerPort: 80
+
+kubectl create -f pod-webserver.yaml 
