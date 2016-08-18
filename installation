@@ -85,6 +85,9 @@ kubectl cluster-info
 on-nodes:
 #######
 
+hostnamectl set-hostname kubu-node1.local
+hostnamectl set-hostname kubu-node2.local
+
 yum install kubernetes-node flannel 
 
 
