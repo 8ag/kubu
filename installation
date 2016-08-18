@@ -51,6 +51,13 @@ ETCD_LISTEN_CLIENT_URLS="http://0.0.0.0:2379"
 ETCD_ADVERTISE_CLIENT_URLS="http://kube-master.local:2379,http://localhost:2379"
 
 
+for SERVICES in etcd kube-apiserver kube-controller-manager kube-scheduler; do
+    systemctl enable --now $SERVICES
+    systemctl restart $SERVICES
+    systemctl status $SERVICES 
+done
+
+
 vi /etc/sysconfig/flanneld
 
 FLANNEL_ETCD="http://127.0.0.1:2379"
@@ -64,18 +71,14 @@ curl -L http://localhost:2379/v2/keys/atomic.io/network/connfig -XPUT --data-url
 
 etcdctl get /atomic.io/network/config
 
-
-
-for SERVICES in etcd kube-apiserver kube-controller-manager kube-scheduler; do
+for SERVICES in flanneld; do
     systemctl enable --now $SERVICES
     systemctl restart $SERVICES
     systemctl status $SERVICES 
 done
 
-
 kubectl get nodes
 kubectl cluster-info 
-
 
 
 ########
